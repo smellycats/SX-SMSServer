@@ -21,7 +21,7 @@ def verify_addr(f):
             pass
         else:
             return {'status': '403.6',
-                    'error': u'禁止访问:客户端的 IP 地址被拒绝'}, 403
+                    'message': u'禁止访问:客户端的 IP 地址被拒绝'}, 403
         return f(*args, **kwargs)
     return decorated_function
 
@@ -41,13 +41,13 @@ def verify_token(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not request.headers.get('Access-Token'):
-            return {'status': 401, 'message': 'access_token error'}, 401
+            return {'status': '401.6', 'message': 'missing token header'}, 401
         token_result = verify_auth_token(request.headers['Access-Token'],
                                          app.config['SECRET_KEY'])
         if not token_result:
-            return {'status': 401, 'message': 'access_token invalid'}, 401
+            return {'status': '401.7', 'message': 'invalid token'}, 401
         elif token_result == 'expired':
-            return {'status': 401, 'message': 'access_token expired'}, 401
+            return {'status': '401.8', 'message': 'token expired'}, 401
         g.uid = token_result['uid']
         g.scope = set(token_result['scope'])
 
@@ -62,7 +62,7 @@ def verify_scope(f):
         if 'all' in g.scope or scope in g.scope:
             pass
         else:
-            return {'status': 405, 'error': 'Method Not Allowed'}, 405
+            return {'status': '405', 'error': 'Method Not Allowed'}, 405
         return f(*args, **kwargs)
     return decorated_function
 
@@ -239,7 +239,7 @@ class SMSList(Resource):
 
         sms = SMS(mobiles=json.dumps(request.json['mobiles']),
                   content=request.json['content'],
-                  returned_value=0, user_id=3)
+                  returned_value=-99, user_id=g.uid)
         db.session.add(sms)
         db.session.commit()
 
@@ -248,8 +248,12 @@ class SMSList(Resource):
         result['date_send'] = str(sms.date_send)
         result['mobiles'] = json.loads(sms.mobiles)
         result['content'] = sms.content
-        result['returned_value'] = sms.returned_value
         result['user_id'] = sms.user_id
+        result['returned_value'] = sms.returned_value
+        if sms.returned_value == 0:
+            result['succeed'] = True
+        else:
+            result['succeed'] = False
 
         return result, 201
 
