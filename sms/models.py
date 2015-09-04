@@ -59,12 +59,12 @@ class SMS(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     date_send = db.Column(db.DateTime, default=arrow.now().datetime)
-    mobiles = db.Column(db.String(255), default='')
+    mobiles = db.Column(db.String(255), default='[]')
     content = db.Column(db.Text)
     returned_value = db.Column(db.Integer, default=-99)
     user_id = db.Column(db.Integer, default=0)
 
-    def __init__(self, date_send=None, mobiles='', content='',
+    def __init__(self, date_send=None, mobiles='[]', content='',
                  returned_value=-99, user_id=0):
         if not date_send:
             self.date_send = arrow.now().datetime
