@@ -3,15 +3,25 @@ import json
 from functools import wraps
 
 import arrow
-from flask import g, request
+from flask import g, request, make_response
 from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
-from app import db, app, api, auth, limiter, logger, cache
+from app import db, app, api, auth, limiter, cache, logger, access_logger
 from models import Users, Scope, SMS
 from help_func import *
 
+
+@app.after_request
+def after_request(response):
+    """访问信息写入日志"""
+    access_logger.info('%s - - [%s] "%s %s HTTP/1.1" %s %s'
+                       % (request.remote_addr,
+                          arrow.now().format('DD/MMM/YYYY:HH:mm:ss ZZ'),
+                          request.method, request.path,
+                          response.status, response.content_length))
+    return response
 
 def verify_addr(f):
     """token验证装饰器"""
