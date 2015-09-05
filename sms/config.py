@@ -18,7 +18,7 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///../sms.db'
     # 数据库连接 dict
     SQLALCHEMY_BINDS = {
-        'sms': 'mysql://root:root@localhost/sms',
+        'sms': 'mysql://root:root@localhost:3306/sms',
     }
     # 用户权限范围 dict
     SCOPE_USER = {}
