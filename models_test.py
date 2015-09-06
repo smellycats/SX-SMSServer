@@ -23,6 +23,10 @@ def sms_get():
     for i in sms:
         print i.mobiles
 
+def sms_update():
+    sms = SMS.query.filter_by(id = 13).first()
+    sms.returned_value = 1
+    db.session.commit()
 
 if __name__ == '__main__':
     #sms_add()
