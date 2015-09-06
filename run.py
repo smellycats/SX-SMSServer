@@ -9,6 +9,7 @@ if __name__ == '__main__':
     my_ini = MyIni()
     mysql_ini = my_ini.get_mysql()
     sys_ini = my_ini.get_sys()
+    #web_ini = my_ini.get_webservice()
 
     app.config['SECRET_KEY'] = sys_ini['secret_key']
     app.config['HOST']       = sys_ini['host']
@@ -18,5 +19,6 @@ if __name__ == '__main__':
     if wl != ['']:
         app.config['WHITE_LIST'] = set(wl) | app.config['WHITE_LIST']
     app.config['SQLALCHEMY_BINDS']['sms'] = 'mysql://%s:%s@%s:%s/%s' % (mysql_ini['user'], mysql_ini['pwd'], mysql_ini['host'], str(mysql_ini['port']), mysql_ini['db'])
+    app.config['SMS_WSDL_PARAMS'] = my_ini.get_webservice()
     #print app.config
     app.run(port=sys_ini['port'], threaded=True)
