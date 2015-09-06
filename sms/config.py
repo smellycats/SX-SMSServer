@@ -26,6 +26,15 @@ class Config(object):
     WHITE_LIST_OPEN = False
     # 白名单列表 set
     WHITE_LIST = set(['127.0.0.1'])
+    # webservice短信平台参数 dict
+    SMS_WSDL_PARAMS = {
+        'url': '',
+        'db_ip': '',
+        'db_name': '',
+        'db_port': '',
+        'user': '',
+        'pwd': ''
+    }
 
 class Develop(Config):
     DEBUG = True

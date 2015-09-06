@@ -11,7 +11,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from app import db, app, api, auth, limiter, cache, logger, access_logger
 from models import Users, Scope, SMS
 from help_func import *
-
+from soap_func import SMSClient
 
 @app.after_request
 def after_request(response):
@@ -198,9 +198,13 @@ class ScopeList(Resource):
 
 
 def get_uid():
-    user = Users.query.filter_by(username=request.json.get('username', ''),
-                                 banned=0).first()
-    g.uid = -1
+    try:
+        user = Users.query.filter_by(username=request.json.get('username', ''),
+                                     banned=0).first()
+        g.uid = -1
+    except Exception as e:
+        logger.error(e)
+        raise
     if user:
         if sha256_crypt.verify(request.json.get('password', ''), user.password):
             g.uid = user.id
@@ -246,13 +250,27 @@ class SMSList(Resource):
         parser.add_argument('content', type=unicode, required=True,
                             help='A content field is require', location='json')
         args = parser.parse_args()
-
-        sms = SMS(mobiles=json.dumps(request.json['mobiles']),
-                  content=request.json['content'],
-                  returned_value=-99, user_id=g.uid)
-        db.session.add(sms)
-        db.session.commit()
-
+        try:
+            sms = SMS(mobiles=json.dumps(request.json['mobiles']),
+                      content=request.json['content'],
+                      returned_value=-99, user_id=g.uid)
+            db.session.add(sms)
+            db.session.commit()
+            sms_ini = app.config['SMS_WSDL_PARAMS']
+            sms_client = SMSClient(sms_ini['url'])
+            sms_client.sms_init(sms_ini['db_ip'], sms_ini['db_name'],
+                                sms_ini['db_port'], sms_ini['user'],
+                                sms_ini['pwd'])
+            r = sms_client.sms_send(sms_ini['user'], sms_ini['user'],
+                                    sms_ini['pwd'],
+                                    request.json['mobiles'],
+                                    request.json['content'], sms.id)
+            sms.returned_value = r
+            db.session.commit()
+            del sms_client
+        except Exception as e:
+            logger.error(e)
+            raise
         result = {}
         result['id'] = sms.id
         result['date_send'] = str(sms.date_send)
