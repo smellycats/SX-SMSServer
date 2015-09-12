@@ -19,15 +19,15 @@ def after_request(response):
     access_logger.info('%s - - [%s] "%s %s HTTP/1.1" %s %s'
                        % (request.remote_addr,
                           arrow.now().format('DD/MMM/YYYY:HH:mm:ss ZZ'),
-                          request.method, request.path,
-                          response.status, response.content_length))
+                          request.method, request.path, response.status_code,
+                          response.content_length))
     return response
 
 def verify_addr(f):
-    """token验证装饰器"""
+    """IP地址白名单"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not app.config['WHITE_LIST_OPEN'] or request.remote_addr in app.config['WHITE_LIST']:
+        if not app.config['WHITE_LIST_OPEN'] or request.remote_addr == '127.0.0.1' or request.remote_addr in app.config['WHITE_LIST']:
             pass
         else:
             return {'status': '403.6',
