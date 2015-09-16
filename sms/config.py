@@ -13,7 +13,7 @@ class Config(object):
     # 加密次数 int
     ROUNDS = 123456
     # token生存周期，默认1小时 int
-    EXPIRES = 3600
+    EXPIRES = 7200
     # 数据库连接 string
     SQLALCHEMY_DATABASE_URI = 'sqlite:///../sms.db'
     # 数据库连接 dict
