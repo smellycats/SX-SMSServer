@@ -8,7 +8,7 @@ from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
-from app import db, app, api, auth, limiter, cache, logger, access_logger
+from app import db, app, api, auth, limiter, logger, access_logger
 from models import Users, Scope, SMS
 from help_func import *
 from soap_func import SMSClient
@@ -198,10 +198,11 @@ class ScopeList(Resource):
 
 
 def get_uid():
+    g.uid = -1
+    g.scope = ''
     try:
         user = Users.query.filter_by(username=request.json.get('username', ''),
                                      banned=0).first()
-        g.uid = -1
     except Exception as e:
         logger.error(e)
         raise
@@ -209,12 +210,14 @@ def get_uid():
         if sha256_crypt.verify(request.json.get('password', ''), user.password):
             g.uid = user.id
             g.scope = user.scope
-    return str(g.uid)
+            return str(g.uid)
+    return request.remote_addr
 
 
 class TokenList(Resource):
-    decorators = [limiter.limit("5/hour", get_uid), verify_addr]
+    decorators = [limiter.limit("5/hour", get_uid)]
 
+    @verify_addr
     def post(self):
         if not request.json.get('username', None):
             error = {'resource': 'Token', 'field': 'username',
@@ -246,7 +249,8 @@ class SMSList(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mobiles', type=list, required=True,
-                            help='A mobiles field is require', location='json')
+                            help='A mobiles list field is require',
+                            location='json')
         parser.add_argument('content', type=unicode, required=True,
                             help='A content field is require', location='json')
         args = parser.parse_args()
@@ -271,13 +275,14 @@ class SMSList(Resource):
         except Exception as e:
             logger.error(e)
             raise
-        result = {}
-        result['id'] = sms.id
-        result['date_send'] = str(sms.date_send)
-        result['mobiles'] = json.loads(sms.mobiles)
-        result['content'] = sms.content
-        result['user_id'] = sms.user_id
-        result['returned_value'] = sms.returned_value
+        result = {
+            'id': sms.id,
+            'mobiles': json.loads(sms.mobiles),
+            'date_send': str(sms.date_send),
+            'content': sms.content,
+            'user_id': sms.user_id,
+            'returned_value': sms.returned_value
+        }
         if sms.returned_value == 0:
             result['succeed'] = True
         else:
