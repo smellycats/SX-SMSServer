@@ -8,7 +8,7 @@ from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
-from app import db, app, api, auth, limiter, logger, access_logger
+from sms import db, app, api, auth, limiter, logger, access_logger
 from models import Users, Scope, SMS
 from help_func import *
 from soap_func import SMSClient
