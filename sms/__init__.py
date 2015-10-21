@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_restful import Api
 from flask_httpauth import HTTPBasicAuth, HTTPDigestAuth
 from flask_limiter import Limiter, HEADERS
@@ -36,4 +36,39 @@ limiter.header_mapping = {
 
 # cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-import sms.views
+from sms import views
+
+
+@app.after_request
+def after_request(response):
+    """访问信息写入日志"""
+    access_logger.info('%s - - [%s] "%s %s HTTP/1.1" %s %s'
+                       % (request.remote_addr,
+                          arrow.now().format('DD/MMM/YYYY:HH:mm:ss ZZ'),
+                          request.method, request.path, response.status_code,
+                          response.content_length))
+    response.headers['Server'] = app.config['SERVER']
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+
+    return response
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return jsonify({'message': 'Not Found'}), 404,
+    {'Content-Type': 'application/json; charset=utf-8',
+     'Server': app.config['SERVER']}
+
+
+@app.errorhandler(405)
+def method_not_allow(error):
+    return jsonify({'message': 'Method Not Allowed'}), 405,
+    {'Content-Type': 'application/json; charset=utf-8',
+     'Server': app.config['SERVER']}
+
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    return jsonify({'message': 'Internal Server Error'}), 500,
+    {'Content-Type': 'application/json; charset=utf-8',
+     'Server': app.config['SERVER']}
