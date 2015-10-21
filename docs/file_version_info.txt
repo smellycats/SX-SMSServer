@@ -1,4 +1,4 @@
-# UTF-8
+﻿# UTF-8
 #
 # For more details about fixed file info 'ffi' see:
 # http://msdn.microsoft.com/en-us/library/ms646997.aspx
@@ -30,11 +30,11 @@ VSVersionInfo(
       StringTable(
         u'000004b0',
         [StringStruct(u'Comments', u'This installation was built with Inno Setup.'),
-        StringStruct(u'CompanyName', u'惠州实现科技有限公司'),
-        StringStruct(u'FileDescription', u'连接测试'),
+        StringStruct(u'CompanyName', u'广东实现科技有限公司'),
+        StringStruct(u'FileDescription', u'短信服务'),
         StringStruct(u'FileVersion', u'0.1.1'),
         StringStruct(u'LegalCopyright', u'Copyright 2014-2015 by Fire'),
-        StringStruct(u'ProductName', u'SX-Connecting'),
+        StringStruct(u'ProductName', u'SX-SMSServer'),
         StringStruct(u'ProductVersion', u'0.1.1')])
       ]), 
     VarFileInfo([VarStruct(u'Translation', [0, 1200])])

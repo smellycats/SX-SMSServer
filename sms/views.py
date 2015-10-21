@@ -8,26 +8,17 @@ from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
-from app import db, app, api, auth, limiter, cache, logger, access_logger
+from sms import db, app, api, auth, limiter, logger, access_logger
 from models import Users, Scope, SMS
 from help_func import *
 from soap_func import SMSClient
 
-@app.after_request
-def after_request(response):
-    """访问信息写入日志"""
-    access_logger.info('%s - - [%s] "%s %s HTTP/1.1" %s %s'
-                       % (request.remote_addr,
-                          arrow.now().format('DD/MMM/YYYY:HH:mm:ss ZZ'),
-                          request.method, request.path,
-                          response.status, response.content_length))
-    return response
 
 def verify_addr(f):
-    """token验证装饰器"""
+    """IP地址白名单"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not app.config['WHITE_LIST_OPEN'] or request.remote_addr in app.config['WHITE_LIST']:
+        if not app.config['WHITE_LIST_OPEN'] or request.remote_addr == '127.0.0.1' or request.remote_addr in app.config['WHITE_LIST']:
             pass
         else:
             return {'status': '403.6',
@@ -64,35 +55,37 @@ def verify_token(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def verify_scope(f):
-    """token验证装饰器"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        scope = '_'.join([request.path[1:], request.method.lower()])
-        if 'all' in g.scope or scope in g.scope:
-            pass
-        else:
-            return {'status': '405', 'error': 'Method Not Allowed'}, 405
-        return f(*args, **kwargs)
-    return decorated_function
+
+def verify_scope(scope):
+    def scope(f):
+        """权限范围验证装饰器"""
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'all' in g.scope or scope in g.scope:
+                return f(*args, **kwargs)
+            else:
+                return {}, 405
+        return decorated_function
+    return scope
 
 
 class Index(Resource):
 
     def get(self):
         return {
-            'user_url': 'http://%s:%s/user{/user_id}' % (request.remote_addr, app.config['PORT']),
-            'scope_url': 'http://%s:%s/scope' % (request.remote_addr, app.config['PORT']),
-            'token_url': 'http://%s:%s/token' % (request.remote_addr, app.config['PORT']),
-            'sms_url': 'http://%s:%s/sms/' % (request.remote_addr, app.config['PORT'])
+            'user_url': 'http://%suser{/user_id}' % (request.url_root),
+            'scope_url': 'http://%sscope' % (request.url_root),
+            'token_url': 'http://%stoken' % (request.url_root),
+            'sms_url': 'http://%ssms/' % (request.url_root)
         }, 200, {'Cache-Control': 'public, max-age=60, s-maxage=60'}
 
 
 class User(Resource):
-    decorators = [verify_token, limiter.limit("50/minute")]
+    decorators = [limiter.limit("5000/hours")]
 
     @verify_addr
-    @verify_scope
+    @verify_token
+    @verify_scope('user_get')
     def get(self, user_id):
         user = Users.query.filter_by(id=user_id, banned=0).first()
         if user:
@@ -106,8 +99,9 @@ class User(Resource):
             return {}, 404
 
     @verify_addr
-    @verify_scope
-    def put(self, user_id):
+    @verify_token
+    @verify_scope('user_patch')
+    def post(self, user_id):
         verify_scope('user_put')
         parser = reqparse.RequestParser()
 
@@ -124,7 +118,8 @@ class User(Resource):
         # 求交集后的权限
         u_scope = ','.join(all_scope & request_scope)
 
-        db.session.query(Users).filter_by(id=user_id).update({'scope': u_scope, 'date_modified': arrow.now().datetime})
+        db.session.query(Users).filter_by(id=user_id).update(
+            {'scope': u_scope, 'date_modified': arrow.now().datetime})
         db.session.commit()
 
         user = Users.query.filter_by(id=user_id).first()
@@ -144,7 +139,8 @@ class UserList(Resource):
     decorators = [verify_token, limiter.limit("50/minute")]
 
     @verify_addr
-    @verify_scope
+    @verify_token
+    @verify_scope('user_post')
     def post(self):
         if not request.json.get('username', None):
             error = {'resource': 'Token', 'field': 'username',
@@ -188,7 +184,7 @@ class ScopeList(Resource):
 
     @verify_addr
     @verify_token
-    @verify_scope
+    @verify_scope('scope_get')
     def get(self):
         scope = Scope.query.all()
         items = []
@@ -198,10 +194,11 @@ class ScopeList(Resource):
 
 
 def get_uid():
+    g.uid = -1
+    g.scope = ''
     try:
         user = Users.query.filter_by(username=request.json.get('username', ''),
                                      banned=0).first()
-        g.uid = -1
     except Exception as e:
         logger.error(e)
         raise
@@ -209,12 +206,14 @@ def get_uid():
         if sha256_crypt.verify(request.json.get('password', ''), user.password):
             g.uid = user.id
             g.scope = user.scope
-    return str(g.uid)
+            return str(g.uid)
+    return request.remote_addr
 
 
 class TokenList(Resource):
-    decorators = [limiter.limit("5/hour", get_uid), verify_addr]
+    decorators = [limiter.limit("5/hour", get_uid)]
 
+    @verify_addr
     def post(self):
         if not request.json.get('username', None):
             error = {'resource': 'Token', 'field': 'username',
@@ -239,21 +238,23 @@ class TokenList(Resource):
 
 
 class SMSList(Resource):
-    decorators = [limiter.limit("60/minute"), verify_addr]
+    decorators = [limiter.limit("60/minute")]
 
-    @verify_token
-    @verify_scope
+    @verify_addr
+    #@verify_token
+    #@verify_scope('sms_get')
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mobiles', type=list, required=True,
-                            help='A mobiles field is require', location='json')
+                            help='A mobiles list field is require',
+                            location='json')
         parser.add_argument('content', type=unicode, required=True,
                             help='A content field is require', location='json')
         args = parser.parse_args()
         try:
             sms = SMS(mobiles=json.dumps(request.json['mobiles']),
                       content=request.json['content'],
-                      returned_value=-99, user_id=g.uid)
+                      returned_value=-99, user_id=1)
             db.session.add(sms)
             db.session.commit()
             sms_ini = app.config['SMS_WSDL_PARAMS']
@@ -262,8 +263,7 @@ class SMSList(Resource):
                                 sms_ini['db_port'], sms_ini['user'],
                                 sms_ini['pwd'])
             r = sms_client.sms_send(sms_ini['user'], sms_ini['user'],
-                                    sms_ini['pwd'],
-                                    request.json['mobiles'],
+                                    sms_ini['pwd'],request.json['mobiles'],
                                     request.json['content'], sms.id)
             sms.returned_value = r
             db.session.commit()
@@ -271,13 +271,14 @@ class SMSList(Resource):
         except Exception as e:
             logger.error(e)
             raise
-        result = {}
-        result['id'] = sms.id
-        result['date_send'] = str(sms.date_send)
-        result['mobiles'] = json.loads(sms.mobiles)
-        result['content'] = sms.content
-        result['user_id'] = sms.user_id
-        result['returned_value'] = sms.returned_value
+        result = {
+            'id': sms.id,
+            'mobiles': json.loads(sms.mobiles),
+            'date_send': str(sms.date_send),
+            'content': sms.content,
+            'user_id': sms.user_id,
+            'returned_value': sms.returned_value
+        }
         if sms.returned_value == 0:
             result['succeed'] = True
         else:
@@ -289,7 +290,7 @@ class SMSList(Resource):
 api.add_resource(Index, '/')
 api.add_resource(User, '/user/<int:user_id>')
 api.add_resource(UserList, '/user')
-api.add_resource(ScopeList, '/scope')
+api.add_resource(ScopeList, '/user/scope')
 api.add_resource(TokenList, '/token')
 api.add_resource(SMSList, '/sms')
 

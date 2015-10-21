@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 import arrow
 
-from app import db
+from sms import db
 
 
 class Users(db.Model):
     """用户"""
-    __bind_key__ = 'sms'
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -39,7 +38,6 @@ class Users(db.Model):
 
 class Scope(db.Model):
     """权限范围"""
-    __bind_key__ = 'sms'
     __tablename__ = 'scope'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -54,7 +52,6 @@ class Scope(db.Model):
 
 class SMS(db.Model):
     """短信记录"""
-    __bind_key__ = 'sms'
     __tablename__ = 'sms'
 
     id = db.Column(db.Integer, primary_key=True)
