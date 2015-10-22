@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 
+import arrow
 from flask import Flask, request, jsonify
 from flask_restful import Api
 from flask_httpauth import HTTPBasicAuth, HTTPDigestAuth
@@ -47,7 +48,7 @@ def after_request(response):
                           arrow.now().format('DD/MMM/YYYY:HH:mm:ss ZZ'),
                           request.method, request.path, response.status_code,
                           response.content_length))
-    response.headers['Server'] = app.config['SERVER']
+    response.headers['Server'] = app.config['HEADER_SERVER']
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
 
     return response
@@ -57,18 +58,18 @@ def after_request(response):
 def page_not_found(error):
     return jsonify({'message': 'Not Found'}), 404,
     {'Content-Type': 'application/json; charset=utf-8',
-     'Server': app.config['SERVER']}
+     'Server': app.config['HEADER_SERVER']}
 
 
 @app.errorhandler(405)
 def method_not_allow(error):
     return jsonify({'message': 'Method Not Allowed'}), 405,
     {'Content-Type': 'application/json; charset=utf-8',
-     'Server': app.config['SERVER']}
+     'Server': app.config['HEADER_SERVER']}
 
 
 @app.errorhandler(500)
 def internal_server_error(error):
     return jsonify({'message': 'Internal Server Error'}), 500,
     {'Content-Type': 'application/json; charset=utf-8',
-     'Server': app.config['SERVER']}
+     'Server': app.config['HEADER_SERVER']}

@@ -3,6 +3,8 @@
 class Config(object):
     # 密码 string
     SECRET_KEY = 'hellokitty'
+    # 服务器名称 string
+    HEADER_SERVER = 'SX-SMSServer'
     # 加密次数 int
     ROUNDS = 123456
     # token生存周期，默认2小时 int
