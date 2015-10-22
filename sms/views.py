@@ -8,7 +8,7 @@ from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
-from sms import db, app, api, auth, limiter, logger, access_logger
+from sms import db, app, api, auth, logger, access_logger
 from models import Users, Scope, SMS
 from help_func import *
 from soap_func import SMSClient
@@ -81,7 +81,7 @@ class Index(Resource):
 
 
 class User(Resource):
-    decorators = [limiter.limit("5000/hours")]
+    #decorators = [limiter.limit("5000/hours")]
 
     @verify_addr
     @verify_token
@@ -136,7 +136,7 @@ class User(Resource):
 
 
 class UserList(Resource):
-    decorators = [verify_token, limiter.limit("50/minute")]
+    #decorators = [verify_token, limiter.limit("50/minute")]
 
     @verify_addr
     @verify_token
@@ -211,7 +211,7 @@ def get_uid():
 
 
 class TokenList(Resource):
-    decorators = [limiter.limit("5/hour", get_uid)]
+    #decorators = [limiter.limit("5/hour", get_uid)]
 
     @verify_addr
     def post(self):
@@ -238,7 +238,7 @@ class TokenList(Resource):
 
 
 class SMSList(Resource):
-    decorators = [limiter.limit("60/minute")]
+    #decorators = [limiter.limit("60/minute")]
 
     @verify_addr
     #@verify_token

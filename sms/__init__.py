@@ -5,7 +5,7 @@ import arrow
 from flask import Flask, request, jsonify
 from flask_restful import Api
 from flask_httpauth import HTTPBasicAuth, HTTPDigestAuth
-from flask_limiter import Limiter, HEADERS
+#from flask_limiter import Limiter, HEADERS
 from flask.ext.sqlalchemy import SQLAlchemy
 # from flask.ext.cache import Cache
 
@@ -28,12 +28,12 @@ access_logging(u'logs/access.log')
 logger = logging.getLogger('root')
 access_logger = logging.getLogger('access')
 
-limiter = Limiter(app, headers_enabled=True, global_limits=["10/minute"])
-limiter.header_mapping = {
-    HEADERS.LIMIT: "X-RateLimit-Limit",
-    HEADERS.RESET: "X-RateLimit-Reset",
-    HEADERS.REMAINING: "X-RateLimit-Remaining"
-}
+##limiter = Limiter(app, headers_enabled=True, global_limits=["10/minute"])
+##limiter.header_mapping = {
+##    HEADERS.LIMIT: "X-RateLimit-Limit",
+##    HEADERS.RESET: "X-RateLimit-Reset",
+##    HEADERS.REMAINING: "X-RateLimit-Remaining"
+##}
 
 # cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
