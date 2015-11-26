@@ -11,6 +11,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from sms import db, app, api, auth, limiter, logger, access_logger
 from models import Users, Scope, SMS
 from help_func import *
+import helper
 from soap_func import SMSClient
 
 
@@ -25,6 +26,7 @@ def verify_addr(f):
                     'message': u'禁止访问:客户端的 IP 地址被拒绝'}, 403
         return f(*args, **kwargs)
     return decorated_function
+
 
 @auth.verify_password
 def verify_password(username, password):
@@ -41,16 +43,20 @@ def verify_token(f):
     """token验证装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not request.headers.get('Access-Token'):
-            return {'status': '401.6', 'message': 'missing token header'}, 401
-        token_result = verify_auth_token(request.headers['Access-Token'],
-                                         app.config['SECRET_KEY'])
-        if not token_result:
-            return {'status': '401.7', 'message': 'invalid token'}, 401
-        elif token_result == 'expired':
-            return {'status': '401.8', 'message': 'token expired'}, 401
-        g.uid = token_result['uid']
-        g.scope = set(token_result['scope'])
+        if app.config['TOKEN_OPEN']:
+            g.uid = helper.ip2num(request.remote_addr)
+            g.scope = set(['all'])
+        else:
+            if not request.headers.get('Access-Token'):
+                return {'status': '401.6', 'message': 'missing token header'}, 401
+            token_result = verify_auth_token(request.headers['Access-Token'],
+                                             app.config['SECRET_KEY'])
+            if not token_result:
+                return {'status': '401.7', 'message': 'invalid token'}, 401
+            elif token_result == 'expired':
+                return {'status': '401.8', 'message': 'token expired'}, 401
+            g.uid = token_result['uid']
+            g.scope = set(token_result['scope'])
 
         return f(*args, **kwargs)
     return decorated_function
@@ -102,7 +108,6 @@ class User(Resource):
     @verify_token
     @verify_scope('user_patch')
     def post(self, user_id):
-        verify_scope('user_put')
         parser = reqparse.RequestParser()
 
         parser.add_argument('scope', type=unicode, required=True,
@@ -241,8 +246,8 @@ class SMSList(Resource):
     decorators = [limiter.limit("60/minute")]
 
     @verify_addr
-    #@verify_token
-    #@verify_scope('sms_get')
+    @verify_token
+    @verify_scope('sms_get')
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mobiles', type=list, required=True,
@@ -254,7 +259,7 @@ class SMSList(Resource):
         try:
             sms = SMS(mobiles=json.dumps(request.json['mobiles']),
                       content=request.json['content'],
-                      returned_value=-99, user_id=1)
+                      returned_value=-99, user_id=g.uid)
             db.session.add(sms)
             db.session.commit()
             sms_ini = app.config['SMS_WSDL_PARAMS']
@@ -262,9 +267,13 @@ class SMSList(Resource):
             sms_client.sms_init(sms_ini['db_ip'], sms_ini['db_name'],
                                 sms_ini['db_port'], sms_ini['user'],
                                 sms_ini['pwd'])
+            if request.json.get('smid', None):
+                smid = sms.id
+            else:
+                smid = g.uid
             r = sms_client.sms_send(sms_ini['user'], sms_ini['user'],
                                     sms_ini['pwd'],request.json['mobiles'],
-                                    request.json['content'], sms.id)
+                                    request.json['content'], smsid)
             sms.returned_value = r
             db.session.commit()
             del sms_client
@@ -273,8 +282,8 @@ class SMSList(Resource):
             raise
         result = {
             'id': sms.id,
-            'mobiles': json.loads(sms.mobiles),
             'date_send': str(sms.date_send),
+            'mobiles': json.loads(sms.mobiles),
             'content': sms.content,
             'user_id': sms.user_id,
             'returned_value': sms.returned_value
