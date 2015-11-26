@@ -40,3 +40,12 @@ def row2dict(row):
     for col in row.__table__.columns:
         d[col.name] = getattr(row, col.name)
     return d
+
+def ip2num(ip):
+    """IP地址转整数"""
+    return sum([256**j*int(i) for j,i in enumerate(ip.split('.')[::-1])])
+
+def num2ip(num):
+    """整数转IP地址"""
+    return '.'.join([str(num/(256**i)%256) for i in range(3,-1,-1)])
+
