@@ -17,6 +17,8 @@ class Config(object):
     SQLALCHEMY_POOL_SIZE = 20
     # 用户权限范围 dict
     SCOPE_USER = {}
+    # 命牌是否开启
+    TOKEN_OPEN = False
     # 白名单启用 bool
     WHITE_LIST_OPEN = False
     # 白名单列表 set
