@@ -50,6 +50,9 @@ def after_request(response):
                           response.content_length))
     response.headers['Server'] = app.config['HEADER_SERVER']
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST'
+    response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
 
     return response
 
