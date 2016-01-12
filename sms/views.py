@@ -3,7 +3,7 @@ import json
 from functools import wraps
 
 import arrow
-from flask import g, request, make_response
+from flask import g, request, make_response, jsonify
 from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
@@ -197,57 +197,56 @@ class ScopeList(Resource):
             items.append(row2dict(i))
         return {'total_count': len(items), 'items': items}, 200
 
+@app.route('/token', methods=['OPTIONS'])
+@limiter.limit("5000/hour")
+def token_options():
+    return jsonify(), 200
 
-def get_uid():
-    g.uid = -1
-    g.scope = ''
+@app.route('/token', methods=['POST'])
+@limiter.limit("5/minute")
+def token_post():
+    print 'post'
     try:
-        user = Users.query.filter_by(username=request.json.get('username', ''),
-                                     banned=0).first()
-    except Exception as e:
-        logger.error(e)
-        raise
-    if user:
-        if sha256_crypt.verify(request.json.get('password', ''), user.password):
-            g.uid = user.id
-            g.scope = user.scope
-            return str(g.uid)
-    return request.remote_addr
-
-
-class TokenList(Resource):
-    decorators = [limiter.limit("5/hour", get_uid)]
-
-    @verify_addr
-    def post(self):
+        if request.json is None:
+            return jsonify({'message': 'Problems parsing JSON'}), 400
         if not request.json.get('username', None):
             error = {'resource': 'Token', 'field': 'username',
                      'code': 'missing_field'}
-            return {'message': 'Validation Failed', 'errors': error}, 422
+            return jsonify({'message': 'Validation Failed', 'errors': error}), 422
         if not request.json.get('password', None):
             error = {'resource': 'Token', 'field': 'username',
                      'code': 'missing_field'}
-            return {'message': 'Validation Failed', 'errors': error}, 422
-        if g.uid == -1:
-            return {'message': 'username or password error'}, 422
+            return jsonify({'message': 'Validation Failed', 'errors': error}), 422
+        user = Users.query.filter_by(username=request.json.get('username'),
+                                     banned=0).first()
+        if not user:
+            return jsonify({'message': 'username or password error'}), 422
+        if not sha256_crypt.verify(request.json.get('password'), user.password):
+            return jsonify({'message': 'username or password error'}), 422
+
+        print 'post3'
         s = Serializer(app.config['SECRET_KEY'],
                        expires_in=app.config['EXPIRES'])
-        token = s.dumps({'uid': g.uid, 'scope': g.scope.split(',')})
-        return {
-            'uid': g.uid,
-            'access_token': token,
-            'token_type': 'self',
-            'scope': g.scope,
-            'expires_in': app.config['EXPIRES']
-        }, 201, {'Cache-Control': 'no-store', 'Pragma': 'no-cache'}
+        print 'post4'
+        token = s.dumps({'uid': user.id, 'scope': user.scope.split(',')})
+    except Exception as e:
+        print e
+
+    return jsonify({
+        'uid': user.id,
+        'access_token': token,
+        'token_type': 'self',
+        'scope': user.scope,
+        'expires_in': app.config['EXPIRES']
+    }), 201
 
 
 class SMSList(Resource):
     decorators = [limiter.limit("60/minute")]
 
     @verify_addr
-    @verify_token
-    @verify_scope('sms_get')
+    #@verify_token
+    #@verify_scope('sms_get')
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('mobiles', type=list, required=True,
@@ -256,6 +255,8 @@ class SMSList(Resource):
         parser.add_argument('content', type=unicode, required=True,
                             help='A content field is require', location='json')
         args = parser.parse_args()
+        print request.json['mobiles']
+        return {'returned_value': 2, 'success': True}, 201
         try:
             sms = SMS(mobiles=json.dumps(request.json['mobiles']),
                       content=request.json['content'],
@@ -295,13 +296,36 @@ class SMSList(Resource):
 
         return result, 201
 
+@app.route('/sms', methods=['OPTIONS'])
+@limiter.limit("5000/hour")
+def sms_options():
+    return jsonify(), 200
+
+@app.route('/sms', methods=['GET'])
+@limiter.limit("5000/hour")
+def sms_get():
+    limit = request.args.get('limit', 20)
+    offset = request.args.get('offset', 0)
+    
+    sms = SMS.query.order_by('date_send desc').limit(limit).offset(offset).all()
+    total = SMS.query.count()
+    items = []
+    for i in sms:
+        items.append({'id': i.id, 'date_send': str(i.date_send),
+                      'mobiles': i.mobiles,
+                      'content': i.content,
+                      'returned_value': i.returned_value,
+                      'user_id': i.user_id})
+    return jsonify({'total_count': total, 'items': items}), 200
+
 
 api.add_resource(Index, '/')
 api.add_resource(User, '/user/<int:user_id>')
 api.add_resource(UserList, '/user')
 api.add_resource(ScopeList, '/user/scope')
-api.add_resource(TokenList, '/token')
+#api.add_resource(TokenList, '/token')
 api.add_resource(SMSList, '/sms')
+
 
 
 
