@@ -94,6 +94,51 @@ def index_get():
     return jsonify(result), 200, header
 
 
+@app.route('/login', methods=['OPTIONS'])
+@limiter.limit("5000/hour")
+def login_options():
+    return jsonify(), 200
+
+@app.route('/login', methods=['POST'])
+@limiter.limit("5000/hour")
+def login_post():
+    if not request.json:
+        return jsonify({'message': 'Problems parsing JSON'}), 400
+    if not request.json.get('username', None):
+        error = {
+            'resource': 'user',
+            'field': 'username',
+            'code': 'missing_field'
+        }
+        return jsonify({'message': 'Validation Failed', 'errors': error}), 422
+    if not request.json.get('password', None):
+        error = {
+            'resource': 'user',
+            'field': 'password',
+            'code': 'missing_field'
+        }
+        return jsonify({'message': 'Validation Failed', 'errors': error}), 422
+
+    compare = False
+    user = Users.query.filter_by(username=request.json['username']).first()
+    if user:
+        compare = sha256_crypt.verify(request.json['password'], user.password)
+
+    if compare:
+        result = {
+            'username': user.username,
+            'scope': user.scope,
+            'date_created': str(user.date_created)
+        }
+        return jsonify(result), 200
+    else:
+        result = {
+            'message': u'用户名或密码错误'
+        }
+        return jsonify(result), 422
+
+    
+
 @app.route('/user', methods=['OPTIONS'])
 @limiter.limit("5000/hour")
 def user_options():
@@ -226,12 +271,12 @@ def scope_get():
     return jsonify({'total_count': len(items), 'items': items}), 200
     
 @app.route('/token', methods=['OPTIONS'])
-@limiter.limit("5000/hour")
+@limiter.limit('5000/hour')
 def token_options():
     return jsonify(), 200
 
 @app.route('/token', methods=['POST'])
-@limiter.limit("5/minute")
+@limiter.limit('5/minute')
 def token_post():
     try:
         if request.json is None:
@@ -270,12 +315,12 @@ def token_post():
 
 
 @app.route('/sms', methods=['OPTIONS'])
-@limiter.limit("5000/hour")
+@limiter.limit('5000/hour')
 def sms_options():
     return jsonify(), 200
 
 @app.route('/sms', methods=['GET'])
-@limiter.limit("5000/hour")
+@limiter.limit('5000/hour')
 def sms_get():
     limit = request.args.get('limit', 20)
     offset = request.args.get('offset', 0)
