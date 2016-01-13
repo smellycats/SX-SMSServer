@@ -19,9 +19,13 @@ def sms_add():
     print sms.id
 
 def sms_get():
-    sms = SMS.query.all()
+    sms = SMS.query.order_by('date_send desc').limit(20).offset(40).all()
     for i in sms:
         print i.mobiles
+
+def sms_count():
+    sms = SMS.query.order_by('date_send desc').count()
+    print type(sms)
 
 def sms_update():
     sms = SMS.query.filter_by(id = 13).first()
@@ -29,5 +33,6 @@ def sms_update():
     db.session.commit()
 
 if __name__ == '__main__':
-    #sms_add()
-    sms_get()
+    ##sms_add()
+    #sms_get()
+    sms_count()
