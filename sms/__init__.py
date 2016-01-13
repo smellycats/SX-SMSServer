@@ -73,6 +73,12 @@ def method_not_allow(error):
 
 @app.errorhandler(500)
 def internal_server_error(error):
-    return jsonify({'message': 'Internal Server Error'}), 500,
-    {'Content-Type': 'application/json; charset=utf-8',
-     'Server': app.config['HEADER_SERVER']}
+    headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Server': app.config['HEADER_SERVER'],
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST',
+        'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept'
+    }
+
+    return jsonify({'message': 'Internal Server Error'}), 500, headers
