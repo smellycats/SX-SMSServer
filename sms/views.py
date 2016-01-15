@@ -264,10 +264,7 @@ def scope_options():
 @app.route('/scope', methods=['GET'])
 @limiter.limit('5000/hour')
 def scope_get():
-    scope = Scope.query.all()
-    items = []
-    for i in scope:
-        items.append(helper.row2dict(i))
+    items = map(helper.row2dict, Scope.query.all())
     return jsonify({'total_count': len(items), 'items': items}), 200
 
     
