@@ -3,14 +3,14 @@ import json
 from functools import wraps
 
 import arrow
-from flask import g, request, make_response, jsonify
+from flask import g, request, make_response, jsonify, abort
 from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 from sms import db, app, api, auth, limiter, logger, access_logger
 from models import Users, Scope, SMS
-from help_func import *
+#from help_func import *
 import helper
 from soap_func import SMSClient
 
@@ -75,7 +75,7 @@ def verify_scope(scope):
             if 'all' in g.scope or scope in g.scope:
                 return f(*args, **kwargs)
             else:
-                return jsonify(), 405
+                abort(405)
         return decorated_function
     return scope
 
@@ -103,7 +103,7 @@ def login_options():
 @limiter.limit("5000/hour")
 def login_post():
     if not request.json:
-        return jsonify({'message': 'Problems parsing JSON'}), 400
+        return jsonify({'message': 'Problems parsing JSON'}), 415
     if not request.json.get('username', None):
         error = {
             'resource': 'user',
@@ -140,12 +140,12 @@ def login_post():
     
 
 @app.route('/user', methods=['OPTIONS'])
-@limiter.limit("5000/hour")
+@limiter.limit('5000/hour')
 def user_options():
     return jsonify(), 200
 
 @app.route('/user/<int:user_id>', methods=['GET'])
-@limiter.limit("5000/hour")
+@limiter.limit('5000/hour')
 @auth.login_required
 def user_get(user_id):
     user = Users.query.filter_by(id=user_id, banned=0).first()
@@ -160,14 +160,14 @@ def user_get(user_id):
         }
         return jsonify(result), 200
     else:
-        return jsonify(), 404
+        abort(404)
 
 @app.route('/user/<int:user_id>', methods=['POST', 'PATCH'])
 @limiter.limit('5000/hour')
 @auth.login_required
 def user_patch(user_id):
     if not request.json:
-        return jsonify({'message': 'Problems parsing JSON'}), 400
+        return jsonify({'message': 'Problems parsing JSON'}), 415
     if not request.json.get('scope', None):
         error = {
             'resource': 'user',
@@ -204,7 +204,7 @@ def user_patch(user_id):
 @auth.login_required
 def user_post():
     if not request.json:
-        return jsonify({'message': 'Problems parsing JSON'}), 400
+        return jsonify({'message': 'Problems parsing JSON'}), 415
     if not request.json.get('username', None):
         error = {
             'resource': 'user',
@@ -269,6 +269,7 @@ def scope_get():
     for i in scope:
         items.append(helper.row2dict(i))
     return jsonify({'total_count': len(items), 'items': items}), 200
+
     
 @app.route('/token', methods=['OPTIONS'])
 @limiter.limit('5000/hour')
@@ -280,7 +281,7 @@ def token_options():
 def token_post():
     try:
         if request.json is None:
-            return jsonify({'message': 'Problems parsing JSON'}), 400
+            return jsonify({'message': 'Problems parsing JSON'}), 415
         if not request.json.get('username', None):
             error = {
                 'resource': 'Token',
@@ -343,7 +344,7 @@ def sms_get():
 @auth.login_required
 def sms_post():
     if not request.json:
-        return jsonify({'message': 'Problems parsing JSON'}), 400
+        return jsonify({'message': 'Problems parsing JSON'}), 415
     if not request.json.get('mobiles', None):
         error = {
             'resource': 'user',
@@ -370,9 +371,9 @@ def sms_post():
                             sms_ini['db_port'], sms_ini['user'],
                             sms_ini['pwd'])
         if request.json.get('smid', None):
-            smid = sms.id
+            smsid = sms.id
         else:
-            smid = g.uid
+            smsid = g.uid % 10000
         r = sms_client.sms_send(sms_ini['user'], sms_ini['user'],
                                 sms_ini['pwd'],request.json['mobiles'],
                                 request.json['content'], smsid)
@@ -396,6 +397,4 @@ def sms_post():
         result['succeed'] = False
 
     return jsonify(result), 201
-
-
 
