@@ -6,6 +6,8 @@ import arrow
 import requests
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
+IP = '127.0.0.1'
+PORT = 5000
 
 def auth_test(url):
     headers = {'Authorization': 'Digest kakou="pingworker"',
@@ -41,7 +43,7 @@ def user_put(token):
 
 def token_test():
     headers = {'content-type': 'application/json'}
-    url = 'http://127.0.0.1:8098/token'
+    url = 'http://127.0.0.1:5000/token'
     data = {'username': 'smstest', 'password': 'showmethemoney'}
     r = requests.post(url, headers=headers, data=json.dumps(data))
 
@@ -55,7 +57,7 @@ def scope_get(token):
 
 def sms_post(token):
     headers = {'content-type': 'application/json', 'access_token': token}
-    url = 'http://127.0.0.1:8098/sms'
+    url = 'http://%s:%s/sms' % (IP, PORT)
     data = {'mobiles': ['709394','888'], 'content': '死肥仔'}
     r = requests.post(url, headers=headers, data=json.dumps(data))
 
@@ -63,10 +65,11 @@ def sms_post(token):
 
 if __name__ == '__main__':  # pragma nocover
     token = 'eyJhbGciOiJIUzI1NiIsImV4cCI6MTQ0MTM4NzkyNSwiaWF0IjoxNDQxMzg0MzI1fQ.eyJzY29wZSI6WyJhbGwiXSwidWlkIjoxfQ.Eoas-we-VZeiXqZuLvMEGbLTih1nJ-moAS0LmZFnKpc'
-    token_test = 'eyJhbGciOiJIUzI1NiIsImV4cCI6MTQ0MTM4ODY0MSwiaWF0IjoxNDQxMzg1MDQxfQ.eyJzY29wZSI6WyJzbXNfcG9zdCJdLCJ1aWQiOjJ9.ItdF1WtLKA9vpEjiyER-eI01-te9w9EZ2F1Z9bwY0bE'
+    #token_test = 'eyJhbGciOiJIUzI1NiIsImV4cCI6MTQ0MTM4ODY0MSwiaWF0IjoxNDQxMzg1MDQxfQ.eyJzY29wZSI6WyJzbXNfcG9zdCJdLCJ1aWQiOjJ9.ItdF1WtLKA9vpEjiyER-eI01-te9w9EZ2F1Z9bwY0bE'
     #r = user_post(token)
     #r = token_test()
-    r = sms_post(token_test)
+    #r = sms_post(token_test)
+    r = sms_post(token)
     print r.headers
     print r.status_code
     print r.text

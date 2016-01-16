@@ -50,26 +50,56 @@ def after_request(response):
                           response.content_length))
     response.headers['Server'] = app.config['HEADER_SERVER']
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST'
+    response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
 
     return response
 
 
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({'message': 'Bad Request'}), 400
+
+
+@app.errorhandler(401)
+def unauthorized(error):
+    return jsonify({'message': 'Unauthorized'}), 401
+
+
+@app.errorhandler(403)
+def forbidden(error):
+    return jsonify({'message': 'Forbidden'}), 403
+
 @app.errorhandler(404)
 def page_not_found(error):
-    return jsonify({'message': 'Not Found'}), 404,
-    {'Content-Type': 'application/json; charset=utf-8',
-     'Server': app.config['HEADER_SERVER']}
+    return jsonify({'message': 'Not Found'}), 404
 
 
 @app.errorhandler(405)
 def method_not_allow(error):
-    return jsonify({'message': 'Method Not Allowed'}), 405,
-    {'Content-Type': 'application/json; charset=utf-8',
-     'Server': app.config['HEADER_SERVER']}
+    return jsonify({'message': 'Method Not Allowed'}), 405
+
+
+@app.errorhandler(415)
+def unsupported_media_type(error):
+    return jsonify({'message': 'Unsupported Media Type'}), 415
+
+
+@app.errorhandler(422)
+def unprocessable_entity(error):
+    """请求格式正确，但是由于含有语义错误，无法响应"""
+    return jsonify({'message': 'Unprocessable Entity'}), 422
 
 
 @app.errorhandler(500)
 def internal_server_error(error):
-    return jsonify({'message': 'Internal Server Error'}), 500,
-    {'Content-Type': 'application/json; charset=utf-8',
-     'Server': app.config['HEADER_SERVER']}
+    headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Server': app.config['HEADER_SERVER'],
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST',
+        'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept'
+    }
+
+    return jsonify({'message': 'Internal Server Error'}), 500, headers
