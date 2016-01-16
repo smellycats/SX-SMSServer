@@ -200,7 +200,7 @@ def user_patch(user_id):
     }), 201
 
 @app.route('/user', methods=['POST'])
-@limiter.limit("5000/hour")
+@limiter.limit('5000/hour')
 @auth.login_required
 def user_post():
     if not request.json:
@@ -242,8 +242,8 @@ def user_post():
     request_scope = set(request.json.get('scope', u'null').split(','))
     # 求交集后的权限
     u_scope = ','.join(all_scope & request_scope)
-    u = Users(username=request.json['username'],
-              password=password_hash, scope=u_scope, banned=0)
+    u = Users(username=request.json['username'], password=password_hash,
+              scope=u_scope, banned=0)
     db.session.add(u)
     db.session.commit()
     result = {
@@ -257,7 +257,7 @@ def user_post():
     return jsonify(result), 201
 
 @app.route('/scope', methods=['OPTIONS'])
-@limiter.limit("5000/hour")
+@limiter.limit('5000/hour')
 def scope_options():
     return jsonify(), 200
 
