@@ -37,7 +37,7 @@ limiter.header_mapping = {
 
 # cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-from sms import views
+from . import views
 
 
 @app.after_request
