@@ -10,11 +10,11 @@ class Config(object):
     # token生存周期，默认2小时 int
     EXPIRES = 7200
     # 数据库连接 string
-    SQLALCHEMY_DATABASE_URI = 'mysql://root:root@localhost:3306/sms'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///../sms.db'
     # 数据库连接 dict
     SQLALCHEMY_BINDS = {}
     # 连接池大小 int
-    SQLALCHEMY_POOL_SIZE = 20
+    #SQLALCHEMY_POOL_SIZE = 20
     # 用户权限范围 dict
     SCOPE_USER = {}
     # 命牌是否开启 bool
@@ -33,8 +33,11 @@ class Config(object):
         'pwd': ''
     }
 
+
 class Develop(Config):
     DEBUG = True
 
+
 class Production(Config):
     DEBUG = False
+
