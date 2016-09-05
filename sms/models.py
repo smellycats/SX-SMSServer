@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import arrow
 
-from sms import db
+from . import db
 
 
 class Users(db.Model):

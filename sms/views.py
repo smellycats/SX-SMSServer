@@ -8,7 +8,7 @@ from flask_restful import reqparse, abort, Resource
 from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
-from sms import db, app, api, auth, limiter, logger, access_logger
+from . import db, app, api, auth, limiter, logger, access_logger
 from models import Users, Scope, SMS
 #from help_func import *
 import helper
@@ -82,12 +82,11 @@ def verify_scope(scope):
 
 @app.route('/')
 @limiter.limit("5000/hour")
-@auth.login_required
+#@auth.login_required
 def index_get():
     result = {
         'user_url': 'http://%suser{/user_id}' % (request.url_root),
         'scope_url': 'http://%sscope' % (request.url_root),
-        # 'token_url': 'http://%stoken' % (request.url_root),
         'sms_url': 'http://%ssms/' % (request.url_root)
     }
     header = {'Cache-Control': 'public, max-age=60, s-maxage=60'}
@@ -234,6 +233,8 @@ def user_post():
 
     password_hash = sha256_crypt.encrypt(
         request.json['password'], rounds=app.config['ROUNDS'])
+    #print password_hash
+    #return
     # 所有权限范围
     all_scope = set()
     for i in Scope.query.all():
