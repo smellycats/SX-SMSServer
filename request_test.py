@@ -23,13 +23,13 @@ def user_get(token):
     r = requests.get(url, headers=headers)
     return r
 
-def user_post(token):
-    headers = {'content-type': 'application/json',
-               'access_token': token}
-    url = 'http://127.0.0.1:8098/user'
-    data = {'username': 'smstest', 'password': 'showmethemoney',
+def user_post():
+    headers = {'content-type': 'application/json'}
+    url = 'http://{0}:{1}/user'.format(IP, PORT)
+    data = {'username': 'union_kakou', 'password': 'unionkakousms',
             'scope': 'sms_post'}
-    r = requests.post(url, headers=headers,data=json.dumps(data))
+    r = requests.post(url, headers=headers,data=json.dumps(data),
+                      auth=HTTPBasicAuth('admin', 'sx2767722'))
 
     return r
 
@@ -69,7 +69,8 @@ if __name__ == '__main__':  # pragma nocover
     #r = user_post(token)
     #r = token_test()
     #r = sms_post(token_test)
-    r = sms_post(token)
+    #r = sms_post(token)
+    r = user_post()
     print r.headers
     print r.status_code
     print r.text

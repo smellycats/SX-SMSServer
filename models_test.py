@@ -25,14 +25,18 @@ def sms_get():
 
 def sms_count():
     sms = SMS.query.order_by('date_send desc').count()
-    print type(sms)
+    print sms
 
 def sms_update():
-    sms = SMS.query.filter_by(id = 13).first()
+    sms = SMS.query.filter_by(id = 2).first()
     sms.returned_value = 1
     db.session.commit()
 
 if __name__ == '__main__':
-    ##sms_add()
-    #sms_get()
+    sms_add()
+    sms_get()
+    print 'after get'
     sms_count()
+    print 'after count'
+    sms_update()
+
