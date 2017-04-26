@@ -9,7 +9,7 @@ from passlib.hash import sha256_crypt
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 from . import db, app, api, auth, limiter, logger, access_logger
-from models import Users, Scope, SMS
+from models import *
 #from help_func import *
 import helper
 from soap_func import SMSClient
@@ -41,32 +41,6 @@ def verify_pw(username, password):
     return False
 
 
-def verify_token(f):
-    """token验证装饰器"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if app.config['TOKEN_OPEN']:
-            g.uid = helper.ip2num(request.remote_addr)
-            g.scope = set(['all'])
-        else:
-            if not request.headers.get('Access-Token'):
-                return jsonify({'status': '401.6',
-                                'message': 'missing token header'}), 401
-            token_result = verify_auth_token(request.headers['Access-Token'],
-                                             app.config['SECRET_KEY'])
-            if not token_result:
-                return jsonify({'status': '401.7',
-                                'message': 'invalid token'}), 401
-            elif token_result == 'expired':
-                return jsonify({'status': '401.8',
-                                'message': 'token expired'}), 401
-            g.uid = token_result['uid']
-            g.scope = set(token_result['scope'])
-
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 def verify_scope(scope):
     def scope(f):
         """权限范围验证装饰器"""
@@ -82,121 +56,94 @@ def verify_scope(scope):
 
 @app.route('/')
 @limiter.limit("5000/hour")
-#@auth.login_required
 def index_get():
     result = {
-        'user_url': 'http://%suser{/user_id}' % (request.url_root),
-        'scope_url': 'http://%sscope' % (request.url_root),
-        'sms_url': 'http://%ssms/' % (request.url_root)
+        'user_url': '%suser{/user_id}' % (request.url_root),
+        'scope_url': '%sscope' % (request.url_root),
+        'sms_url': '%ssms/{sms_id}' % (request.url_root),
+        'phone_url': '%sphone/{phone_id}' % (request.url_root)
     }
     header = {'Cache-Control': 'public, max-age=60, s-maxage=60'}
     return jsonify(result), 200, header
 
-
-@app.route('/login', methods=['OPTIONS'])
-@limiter.limit("5000/hour")
-def login_options():
-    return jsonify(), 200
-
-@app.route('/login', methods=['POST'])
-@limiter.limit("5000/hour")
-def login_post():
-    if not request.json:
-        return jsonify({'message': 'Problems parsing JSON'}), 415
-    if not request.json.get('username', None):
-        error = {
-            'resource': 'user',
-            'field': 'username',
-            'code': 'missing_field'
-        }
-        return jsonify({'message': 'Validation Failed', 'errors': error}), 422
-    if not request.json.get('password', None):
-        error = {
-            'resource': 'user',
-            'field': 'password',
-            'code': 'missing_field'
-        }
-        return jsonify({'message': 'Validation Failed', 'errors': error}), 422
-
-    compare = False
-    user = Users.query.filter_by(username=request.json['username']).first()
-    if user:
-        compare = sha256_crypt.verify(request.json['password'], user.password)
-
-    if compare:
-        result = {
-            'username': user.username,
-            'scope': user.scope,
-            'date_created': str(user.date_created)
-        }
-        return jsonify(result), 200
-    else:
-        result = {
-            'message': u'用户名或密码错误'
-        }
-        return jsonify(result), 422
-
-    
-
-@app.route('/user', methods=['OPTIONS'])
-@limiter.limit('5000/hour')
-def user_options():
-    return jsonify(), 200
 
 @app.route('/user/<int:user_id>', methods=['GET'])
 @limiter.limit('5000/hour')
 @auth.login_required
 def user_get(user_id):
     user = Users.query.filter_by(id=user_id, banned=0).first()
-    if user:
-        result = {
-            'id': user.id,
-            'username': user.username,
-            'scope': user.scope,
-            'date_created': str(user.date_created),
-            'date_modified': str(user.date_modified),
-            'banned': user.banned
-        }
-        return jsonify(result), 200
-    else:
+    if user is None:
         abort(404)
-
-@app.route('/user/<int:user_id>', methods=['POST', 'PATCH'])
-@limiter.limit('5000/hour')
-@auth.login_required
-def user_patch(user_id):
-    if not request.json:
-        return jsonify({'message': 'Problems parsing JSON'}), 415
-    if not request.json.get('scope', None):
-        error = {
-            'resource': 'user',
-            'field': 'scope',
-            'code': 'missing_field'
-        }
-        return jsonify({'message': 'Validation Failed', 'errors': error}), 422
-    # 所有权限范围
-    all_scope = set()
-    for i in Scope.query.all():
-        all_scope.add(i.name)
-    # 授予的权限范围
-    request_scope = set(request.json.get('scope', u'null').split(','))
-    # 求交集后的权限
-    u_scope = ','.join(all_scope & request_scope)
-
-    db.session.query(Users).filter_by(id=user_id).update(
-        {'scope': u_scope, 'date_modified': arrow.now().datetime})
-    db.session.commit()
-
-    user = Users.query.filter_by(id=user_id).first()
-
-    return jsonify({
+    result = {
         'id': user.id,
         'username': user.username,
         'scope': user.scope,
         'date_created': str(user.date_created),
         'date_modified': str(user.date_modified),
         'banned': user.banned
-    }), 201
+    }
+    return jsonify(result), 200
+
+
+@app.route('/user', methods=['GET'])
+@limiter.limit('5000/hour')
+@auth.login_required
+def user_list_get():
+    try:
+        limit = int(request.args.get('per_page', 20))
+        offset = (int(request.args.get('page', 1)) - 1) * limit
+        s = db.session.query(Users)
+        q = request.args.get('q', None)
+        if q is not None:
+            s = s.filter(Users.username.like("%{0}%".format(q)))
+        user = s.limit(limit).offset(offset).all()
+        total = s.count()
+        items = []
+        for i in user:
+            items.append({
+                'id': i.id,
+                'username': i.username,
+                'scope': i.scope,
+                'date_created': str(i.date_created),
+                'date_modified': str(i.date_modified),
+                'banned': i.banned})
+    except Exception as e:
+        logger.exception(e)
+    return jsonify({'total_count': total, 'items': items}), 200
+
+
+@app.route('/user/<int:user_id>', methods=['POST', 'PUT'])
+@limiter.limit('5000/hour')
+@auth.login_required
+def user_put(user_id):
+    if not request.json:
+        return jsonify({'message': 'Problems parsing JSON'}), 415
+    user = Users.query.filter_by(id=user_id).first()
+    if user is None:
+        abort(404)
+    if request.json.get('scope', None) is not None:
+        # 所有权限范围
+        all_scope = set()
+        for i in Scope.query.all():
+            all_scope.add(i.name)
+        # 授予的权限范围
+        request_scope = set(request.json.get('scope', u'null').split(','))
+        # 求交集后的权限
+        u_scope = ','.join(all_scope & request_scope)
+
+        user.scope = u_scope
+    if request.json.get('password', None) is not None:
+        user.password = sha256_crypt.encrypt(
+            request.json['password'], rounds=app.config['ROUNDS'])
+    if request.json.get('banned', None) is not None:
+        user.banned = request.json['banned']
+    user.date_modified = arrow.now('PRC').datetime.replace(tzinfo=None)
+    db.session.commit()
+
+    user = Users.query.filter_by(id=user_id).first()
+
+    return jsonify(), 204
+
 
 @app.route('/user', methods=['POST'])
 @limiter.limit('5000/hour')
@@ -233,8 +180,6 @@ def user_post():
 
     password_hash = sha256_crypt.encrypt(
         request.json['password'], rounds=app.config['ROUNDS'])
-    #print password_hash
-    #return
     # 所有权限范围
     all_scope = set()
     for i in Scope.query.all():
@@ -243,7 +188,10 @@ def user_post():
     request_scope = set(request.json.get('scope', u'null').split(','))
     # 求交集后的权限
     u_scope = ','.join(all_scope & request_scope)
-    u = Users(username=request.json['username'], password=password_hash,
+    t = arrow.now('PRC').datetime.replace(tzinfo=None)
+    u = Users(username=request.json['username'],
+              password=password_hash,
+              date_created=t, date_modified=t,
               scope=u_scope, banned=0)
     db.session.add(u)
     db.session.commit()
@@ -257,83 +205,70 @@ def user_post():
     }
     return jsonify(result), 201
 
-@app.route('/scope', methods=['OPTIONS'])
-@limiter.limit('5000/hour')
-def scope_options():
-    return jsonify(), 200
 
 @app.route('/scope', methods=['GET'])
 @limiter.limit('5000/hour')
-def scope_get():
+@auth.login_required
+def scope_list_get():
     items = map(helper.row2dict, Scope.query.all())
     return jsonify({'total_count': len(items), 'items': items}), 200
 
-    
-@app.route('/token', methods=['OPTIONS'])
+
+@app.route('/sms/<int:sms_id>', methods=['GET'])
 @limiter.limit('5000/hour')
-def token_options():
-    return jsonify(), 200
+@auth.login_required
+def sms_get(sms_id):
+    sms = SMS.query.filter_by(id=sms_id).first()
+    if sms is None:
+        abort(404)
+    result = {
+        'id': sms.id,
+        'date_send': str(sms.date_send),
+        'mobiles': json.loads(sms.mobiles),
+        'content': sms.content,
+        'returned_value': sms.returned_value,
+        'user_id': sms.user_id
+    }
+    return jsonify(result), 200
 
-@app.route('/token', methods=['POST'])
-@limiter.limit('5/minute')
-def token_post():
-    try:
-        if request.json is None:
-            return jsonify({'message': 'Problems parsing JSON'}), 415
-        if not request.json.get('username', None):
-            error = {
-                'resource': 'Token',
-                'field': 'username',
-                'code': 'missing_field'
-            }
-            return jsonify({'message': 'Validation Failed', 'errors': error}), 422
-        if not request.json.get('password', None):
-            error = {'resource': 'Token', 'field': 'password',
-                     'code': 'missing_field'}
-            return jsonify({'message': 'Validation Failed', 'errors': error}), 422
-        user = Users.query.filter_by(username=request.json.get('username'),
-                                     banned=0).first()
-        if not user:
-            return jsonify({'message': 'username or password error'}), 422
-        if not sha256_crypt.verify(request.json.get('password'), user.password):
-            return jsonify({'message': 'username or password error'}), 422
-
-        s = Serializer(app.config['SECRET_KEY'],
-                       expires_in=app.config['EXPIRES'])
-        token = s.dumps({'uid': user.id, 'scope': user.scope.split(',')})
-    except Exception as e:
-        print e
-
-    return jsonify({
-        'uid': user.id,
-        'access_token': token,
-        'token_type': 'self',
-        'scope': user.scope,
-        'expires_in': app.config['EXPIRES']
-    }), 201
-
-
-@app.route('/sms', methods=['OPTIONS'])
-@limiter.limit('5000/hour')
-def sms_options():
-    return jsonify(), 200
 
 @app.route('/sms', methods=['GET'])
 @limiter.limit('5000/hour')
-def sms_get():
-    limit = request.args.get('limit', 20)
-    offset = request.args.get('offset', 0)
-    
-    sms = SMS.query.order_by('date_send desc').limit(limit).offset(offset).all()
-    total = SMS.query.count()
-    items = []
-    for i in sms:
-        items.append({
-            'id': i.id, 'date_send': str(i.date_send),
-            'mobiles': i.mobiles,
-            'content': i.content,
-            'returned_value': i.returned_value,
-            'user_id': i.user_id})
+@auth.login_required
+def sms_list_get():
+    try:
+        limit = int(request.args.get('per_page', 20))
+        offset = (int(request.args.get('page', 1)) - 1) * limit
+        st = request.args.get('st', None)
+        et = request.args.get('et', None)
+        s = db.session.query(SMS)
+        if st is not None:
+            st = arrow.get(st).datetime.replace(tzinfo=None)
+            s = s.filter(SMS.date_send >= st)
+            if et is not None:
+                et = arrow.get(et).datetime.replace(tzinfo=None)
+                s = s.filter(SMS.date_send <= et)
+        q = request.args.get('q', None)
+        if q is not None:
+            s = s.filter(db.or_(SMS.mobiles.like("%{0}%".format(q)),
+                         SMS.content.like("%{0}%".format(q))))
+        user_id = request.args.get('user_id', None)
+        if user_id is not None:
+            s = s.filter(SMS.user_id == user_id)
+        sms = s.order_by('date_send desc').limit(limit).offset(offset).all()
+        total = s.count()
+        items = []
+        for i in sms:
+            items.append({
+                'id': i.id,
+                'date_send': str(i.date_send),
+                'mobiles': json.loads(i.mobiles),
+                'content': i.content,
+                'returned_value': i.returned_value,
+                'user_id': i.user_id})
+    except Exception as e:
+        logger.exception(e)
+        raise
     return jsonify({'total_count': total, 'items': items}), 200
 
 
@@ -363,23 +298,20 @@ def sms_post():
                   returned_value=-99, user_id=g.uid)
         db.session.add(sms)
         db.session.commit()
-        sms_ini = app.config['SMS_WSDL_PARAMS']
-        sms_client = SMSClient(sms_ini['url'])
-        sms_client.sms_init(sms_ini['db_ip'], sms_ini['db_name'],
-                            sms_ini['db_port'], sms_ini['user'],
-                            sms_ini['pwd'])
+
         if request.json.get('smid', None):
             smsid = sms.id
         else:
             smsid = g.uid % 10000
-        r = sms_client.sms_send(sms_ini['user'], sms_ini['user'],
-                                sms_ini['pwd'],request.json['mobiles'],
-                                request.json['content'], smsid)
+        sms_client = SMSClient(**app.config['SMS_WSDL_PARAMS'])
+        sms_client.sms_init()
+        r = sms_client.sms_send(
+            request.json['mobiles'], request.json['content'], smsid)
         sms.returned_value = r
         db.session.commit()
         del sms_client
     except Exception as e:
-        logger.error(e)
+        logger.exception(e)
         raise
     result = {
         'id': sms.id,
@@ -396,3 +328,113 @@ def sms_post():
 
     return jsonify(result), 201
 
+
+@app.route('/phone', methods=['GET'])
+@limiter.limit('5000/hour')
+@auth.login_required
+def phone_list_get():
+    try:
+        limit = int(request.args.get('per_page', 20))
+        offset = (int(request.args.get('page', 1)) - 1) * limit
+        s = Phone.query.filter_by(banned=0)
+        p = s.limit(limit).offset(offset).all()
+        total = s.count()
+        items = []
+        for i in p:
+            items.append({
+                'id': i.id,
+                'user_id': i.user_id,
+                'mobiles': json.loads(i.mobiles),
+                'content': i.content,
+                'date_created': str(i.date_created),
+                'date_modified': str(i.date_modified),
+                'banned': i.banned})
+    except Exception as e:
+        logger.exception(e)
+        raise
+    return jsonify({'total_count': total, 'items': items}), 200
+
+
+@app.route('/phone/<int:phone_id>', methods=['GET'])
+@limiter.limit('5000/hour')
+@auth.login_required
+def phone_get(phone_id):
+    p = Phone.query.filter_by(id=phone_id).first()
+    if p is None:
+        abort(404)
+    result = {
+        'id': p.id,
+        'user_id': p.user_id,
+        'mobiles': json.loads(p.mobiles),
+        'content': p.content,
+        'date_created': str(p.date_created),
+        'date_modified': str(p.date_modified),
+        'banned': p.banned
+    }
+    return jsonify(result), 200
+
+
+@app.route('/phone/<int:phone_id>', methods=['POST', 'PUT'])
+@limiter.limit('5000/hour')
+@auth.login_required
+def phone_put(phone_id):
+    if not request.json:
+        return jsonify({'message': 'Problems parsing JSON'}), 415
+    
+    p = Phone.query.filter_by(id=phone_id).first()
+    if p is None:
+        abort(404)
+    try:
+        if request.json.get('mobiles', None) is not None:
+            p.mobiles = json.dumps(request.json['mobiles'])
+        if request.json.get('content', None) is not None:
+            p.content = request.json['content']
+        if request.json.get('banned', None) is not None:
+            p.banned = request.json['banned']
+        p.date_modified = arrow.now('PRC').datetime.replace(tzinfo=None)
+        db.session.commit()
+    except Exception as e:
+        logger.exception(e)
+    
+    return jsonify(), 204
+
+
+@app.route('/phone', methods=['POST'])
+@limiter.limit('5000/hour')
+@auth.login_required
+def phone_post():
+    if not request.json:
+        return jsonify({'message': 'Problems parsing JSON'}), 415
+    if not request.json.get('mobiles', None):
+        error = {
+            'resource': 'phone',
+            'field': 'mobiles',
+            'code': 'missing_field'
+        }
+        return jsonify({'message': 'Validation Failed', 'errors': error}), 422
+    if not request.json.get('mobiles', None):
+        error = {
+            'resource': 'phone',
+            'field': 'content',
+            'code': 'missing_field'
+        }
+        return jsonify({'message': 'Validation Failed', 'errors': error}), 422
+    
+    t = arrow.now('PRC').datetime.replace(tzinfo=None)
+    p = Phone(user_id=request.json.get('user_id', 1),
+              mobiles=json.dumps(request.json['mobiles']),
+              content=request.json['content'],
+              date_created=t, date_modified=t, banned=0)
+    db.session.add(p)
+    db.session.commit()
+
+    result = {
+        'id': p.id,
+        'user_id': p.user_id,
+        'mobiles': json.loads(p.mobiles),
+        'content': p.content,
+        'date_created': str(p.date_created),
+        'date_modified': str(p.date_modified),
+        'banned': p.banned
+    }
+    return jsonify(result), 201
