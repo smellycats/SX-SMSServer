@@ -75,3 +75,28 @@ class SMS(db.Model):
     def __repr__(self):
         return '<SMS %r>' % self.id
 
+
+class Phone(db.Model):
+    """短信记录"""
+    __tablename__ = 'phone'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, default=1)
+    mobiles = db.Column(db.Text, default='[]')
+    content = db.Column(db.Text, default='')
+    date_created = db.Column(db.DateTime)
+    date_modified = db.Column(db.DateTime)
+    banned = db.Column(db.Integer, default=0)
+
+    def __init__(self, user_id=1, mobiles='[]', content='', date_created=None,
+                 date_modified=None, banned=0):
+        self.user_id = user_id
+        self.mobiles = mobiles
+        self.content = content
+        self.date_created = date_created
+        self.date_modified = date_modified
+        self.banned = banned
+
+    def __repr__(self):
+        return '<Phone %r>' % self.id
+
