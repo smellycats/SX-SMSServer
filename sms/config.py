@@ -25,12 +25,12 @@ class Config(object):
     WHITE_LIST = set(['127.0.0.1'])
     # webservice短信平台参数 dict
     SMS_WSDL_PARAMS = {
-        'url': '',
-        'db_ip': '',
-        'db_name': '',
-        'db_port': '',
-        'user': '',
-        'pwd': ''
+        'url': '',     #服务地址
+        'db_ip': '',   #Mas的ip地址
+        'db_name': '', #数据库名称
+        'db_port': '', #数据库端口
+        'user': '',    #接口创建时的接口登录用户名
+        'pwd': ''      #接口创建时的接口登录密码
     }
 
 
