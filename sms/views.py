@@ -78,8 +78,8 @@ def user_get(user_id):
         'id': user.id,
         'username': user.username,
         'scope': user.scope,
-        'date_created': str(user.date_created),
-        'date_modified': str(user.date_modified),
+        'date_created': user.date_created.strftime('%Y-%m-%d %H:%M:%S'),
+        'date_modified': user.date_modified.strftime('%Y-%m-%d %H:%M:%S'),
         'banned': user.banned
     }
     return jsonify(result), 200
@@ -104,8 +104,8 @@ def user_list_get():
                 'id': i.id,
                 'username': i.username,
                 'scope': i.scope,
-                'date_created': str(i.date_created),
-                'date_modified': str(i.date_modified),
+                'date_created': i.date_created.strftime('%Y-%m-%d %H:%M:%S'),
+                'date_modified': i.date_modified.strftime('%Y-%m-%d %H:%M:%S'),
                 'banned': i.banned})
     except Exception as e:
         logger.exception(e)
@@ -199,8 +199,8 @@ def user_post():
         'id': u.id,
         'username': u.username,
         'scope': u.scope,
-        'date_created': str(u.date_created),
-        'date_modified': str(u.date_modified),
+        'date_created': u.date_created.strftime('%Y-%m-%d %H:%M:%S'),
+        'date_modified': u.date_modified.strftime('%Y-%m-%d %H:%M:%S'),
         'banned': u.banned
     }
     return jsonify(result), 201
@@ -223,7 +223,7 @@ def sms_get(sms_id):
         abort(404)
     result = {
         'id': sms.id,
-        'date_send': str(sms.date_send),
+        'date_send': sms.date_send.strftime('%Y-%m-%d %H:%M:%S'),
         'mobiles': json.loads(sms.mobiles),
         'content': sms.content,
         'returned_value': sms.returned_value,
@@ -261,7 +261,7 @@ def sms_list_get():
         for i in sms:
             items.append({
                 'id': i.id,
-                'date_send': str(i.date_send),
+                'date_send': i.date_send.strftime('%Y-%m-%d %H:%M:%S'),
                 'mobiles': json.loads(i.mobiles),
                 'content': i.content,
                 'returned_value': i.returned_value,
@@ -315,7 +315,7 @@ def sms_post():
         raise
     result = {
         'id': sms.id,
-        'date_send': str(sms.date_send),
+        'date_send': sms.date_send.strftime('%Y-%m-%d %H:%M:%S'),
         'mobiles': json.loads(sms.mobiles),
         'content': sms.content,
         'user_id': sms.user_id,
@@ -346,8 +346,8 @@ def phone_list_get():
                 'user_id': i.user_id,
                 'mobiles': json.loads(i.mobiles),
                 'content': i.content,
-                'date_created': str(i.date_created),
-                'date_modified': str(i.date_modified),
+                'date_created': i.date_created.strftime('%Y-%m-%d %H:%M:%S'),
+                'date_modified': i.date_modified.strftime('%Y-%m-%d %H:%M:%S'),
                 'banned': i.banned})
     except Exception as e:
         logger.exception(e)
@@ -367,8 +367,8 @@ def phone_get(phone_id):
         'user_id': p.user_id,
         'mobiles': json.loads(p.mobiles),
         'content': p.content,
-        'date_created': str(p.date_created),
-        'date_modified': str(p.date_modified),
+        'date_created': p.date_created.strftime('%Y-%m-%d %H:%M:%S'),
+        'date_modified': p.date_modified.strftime('%Y-%m-%d %H:%M:%S'),
         'banned': p.banned
     }
     return jsonify(result), 200
@@ -433,8 +433,8 @@ def phone_post():
         'user_id': p.user_id,
         'mobiles': json.loads(p.mobiles),
         'content': p.content,
-        'date_created': str(p.date_created),
-        'date_modified': str(p.date_modified),
+        'date_created': p.date_created.strftime('%Y-%m-%d %H:%M:%S'),
+        'date_modified': p.date_modified.strftime('%Y-%m-%d %H:%M:%S'),
         'banned': p.banned
     }
     return jsonify(result), 201
