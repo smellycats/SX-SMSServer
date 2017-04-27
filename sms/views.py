@@ -255,7 +255,7 @@ def sms_list_get():
         user_id = request.args.get('user_id', None)
         if user_id is not None:
             s = s.filter(SMS.user_id == user_id)
-        sms = s.order_by('date_send desc').limit(limit).offset(offset).all()
+        sms = s.order_by(SMS.date_send.desc()).limit(limit).offset(offset).all()
         total = s.count()
         items = []
         for i in sms:
