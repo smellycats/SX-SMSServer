@@ -188,10 +188,8 @@ def user_post():
     # 求交集后的权限
     u_scope = ','.join(all_scope & request_scope)
     t = arrow.now('PRC').datetime.replace(tzinfo=None)
-    u = Users(username=request.json['username'],
-              password=password_hash,
-              date_created=t, date_modified=t,
-              scope=u_scope, banned=0)
+    u = Users(username=request.json['username'], password=password_hash,
+              date_created=t, date_modified=t, scope=u_scope, banned=0)
     db.session.add(u)
     db.session.commit()
     result = {
