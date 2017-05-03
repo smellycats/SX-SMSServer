@@ -129,7 +129,6 @@ def user_put(user_id):
         request_scope = set(request.json.get('scope', u'null').split(','))
         # 求交集后的权限
         u_scope = ','.join(all_scope & request_scope)
-
         user.scope = u_scope
     if request.json.get('password', None) is not None:
         user.password = sha256_crypt.encrypt(
@@ -138,8 +137,6 @@ def user_put(user_id):
         user.banned = request.json['banned']
     user.date_modified = arrow.now('PRC').datetime.replace(tzinfo=None)
     db.session.commit()
-
-    user = Users.query.filter_by(id=user_id).first()
 
     return jsonify(), 204
 
@@ -290,20 +287,13 @@ def sms_post():
         }
         return jsonify({'message': 'Validation Failed', 'errors': error}), 422
     try:
-        sms = SMS(mobiles=json.dumps(request.json['mobiles']), user_id=g.uid,
-                  content=request.json['content'], returned_value=-99)
-        db.session.add(sms)
-        db.session.commit()
-
-        if request.json.get('smid', None):
-            smsid = sms.id
-        else:
-            smsid = g.uid % 10000
         sms_client = SMSClient(**app.config['SMS_WSDL_PARAMS'])
         sms_client.sms_init()
         r = sms_client.sms_send(
-            request.json['mobiles'], request.json['content'], smsid)
-        sms.returned_value = r
+            request.json['mobiles'], request.json['content'], g.uid % 10000)
+        sms = SMS(mobiles=json.dumps(request.json['mobiles']), user_id=g.uid,
+                  content=request.json['content'], returned_value=r)
+        db.session.add(sms)
         db.session.commit()
         del sms_client
     except Exception as e:
@@ -317,7 +307,7 @@ def sms_post():
         'user_id': sms.user_id,
         'returned_value': sms.returned_value
     }
-    if sms.returned_value == 0:
+    if sms.returned_value == '0':
         result['succeed'] = True
     else:
         result['succeed'] = False
