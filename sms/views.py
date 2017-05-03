@@ -10,7 +10,6 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 from . import db, app, api, auth, limiter, logger, access_logger
 from models import *
-#from help_func import *
 import helper
 from soap_func import SMSClient
 
@@ -293,9 +292,8 @@ def sms_post():
         }
         return jsonify({'message': 'Validation Failed', 'errors': error}), 422
     try:
-        sms = SMS(mobiles=json.dumps(request.json['mobiles']),
-                  content=request.json['content'],
-                  returned_value=-99, user_id=g.uid)
+        sms = SMS(mobiles=json.dumps(request.json['mobiles']), user_id=g.uid,
+                  content=request.json['content'], returned_value=-99)
         db.session.add(sms)
         db.session.commit()
 
