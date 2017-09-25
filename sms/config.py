@@ -2,7 +2,7 @@
 
 class Config(object):
     # 密码 string
-    SECRET_KEY = 'hellokitty'
+    SECRET_KEY = 'thefatboy'
     # 服务器名称 string
     HEADER_SERVER = 'SX-SMSServer'
     # 加密次数 int
@@ -10,7 +10,7 @@ class Config(object):
     # token生存周期，默认2小时 int
     EXPIRES = 7200
     # 数据库连接 string
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///../sms.db'
+    SQLALCHEMY_DATABASE_URI = 'mysql://root:root@127.0.0.1/sms'
     # 数据库连接 dict
     SQLALCHEMY_BINDS = {}
     # 连接池大小 int
