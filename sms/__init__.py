@@ -7,7 +7,7 @@ from flask_restful import Api
 from flask_httpauth import HTTPBasicAuth, HTTPDigestAuth
 from flask_limiter import Limiter, HEADERS
 from flask.ext.sqlalchemy import SQLAlchemy
-# from flask.ext.cache import Cache
+from flask.ext.cache import Cache
 
 from config import Production
 from my_logger import debug_logging, online_logging, access_logging
@@ -35,7 +35,7 @@ limiter.header_mapping = {
     HEADERS.REMAINING: "X-RateLimit-Remaining"
 }
 
-# cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 from . import views
 
