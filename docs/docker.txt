@@ -1,0 +1,1 @@
+docker run -it -d --restart=always --name sms_ser --privileged=true -p 8070:8070 -v /home/core/GitHub:/home centos-python/smsser gunicorn -c /home/SX-SMSServer/gun.py --chdir /home/SX-SMSServer run:app
