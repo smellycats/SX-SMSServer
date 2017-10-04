@@ -43,7 +43,7 @@ def sms_get(sms_id):
         }
         return jsonify(result), 200
     except Exception as e:
-        print(e)
+        logger.exception(e)
 
 
 @app.route('/sms', methods=['GET'])
@@ -152,7 +152,6 @@ def sms_post():
             result['succeed'] = False
         return jsonify(result), 201
     except Exception as e:
-        print(e)
         logger.exception(e)
         raise
 
