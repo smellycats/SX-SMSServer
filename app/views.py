@@ -25,8 +25,22 @@ def index_get():
     return jsonify(result), 200, header
 
 
-@app.route('/sms/<int:sms_id>', methods=['GET'])
+@app.route('/user', methods=['GET'])
 @limiter.limit('5000/hour')
+def user_list_get():
+    try:
+        items = []
+        users = Users.query.filter_by(banned=0).all()
+        for i in users:
+            items.append({'id': i.id, 'username': i.username})
+        return jsonify({'total_count': len(items), 'items': items}), 200
+    except Exception as e:
+        logger.exception(e)
+        raise
+
+
+@app.route('/sms/<int:sms_id>', methods=['GET'])
+@limiter.limit('5000/minute')
 def sms_get(sms_id):
     try:
         sms = SMS.query.filter_by(id=sms_id).first()
@@ -44,10 +58,11 @@ def sms_get(sms_id):
         return jsonify(result), 200
     except Exception as e:
         logger.exception(e)
+        raise
 
 
 @app.route('/sms', methods=['GET'])
-@limiter.limit('5000/hour')
+@limiter.limit('5000/minute')
 def sms_list_get():
     try:
         limit = int(request.args.get('per_page', 20))
@@ -82,10 +97,10 @@ def sms_list_get():
                 'user_info': i.user_info
             }
             items.append(item)
+        return jsonify({'total_count': total, 'items': items}), 200
     except Exception as e:
         logger.exception(e)
         raise
-    return jsonify({'total_count': total, 'items': items}), 200
 
 
 @cache.memoize(60)
@@ -98,7 +113,7 @@ def get_user_dict():
 
 
 @app.route('/sms', methods=['POST'])
-@limiter.limit('5000/hour')
+@limiter.limit('5000/minute')
 def sms_post():
     if not request.json:
         return jsonify({'message': 'Problems parsing JSON'}), 415
