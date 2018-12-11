@@ -3,8 +3,8 @@ import json
 
 import arrow
 
-from sms import db
-from sms.models import SMS
+from app import db
+from app.models import SMS
 
 
 def sms_add():
@@ -19,9 +19,10 @@ def sms_add():
     print sms.id
 
 def sms_get():
-    sms = SMS.query.order_by('date_send desc').limit(20).offset(40).all()
+    sms = SMS.query.limit(20).offset(40).all()
     for i in sms:
-        print i.date_send
+        info = {'date_send': i.date_send, 'mobiles': i.mobiles, 'content': i.content}
+        print(json.dumps(info))
 
 def sms_count():
     sms = SMS.query.order_by('date_send desc').count()

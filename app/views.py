@@ -5,16 +5,13 @@ from functools import wraps
 import arrow
 from flask import g, request, make_response, jsonify, abort
 from flask_restful import reqparse, abort, Resource
-from passlib.hash import sha256_crypt
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
-from . import db, app, api, auth, limiter, cache, logger, access_logger
-from models import *
-from soap_func import SMSClient
+from . import db, app, cache, logger, access_logger
+from .models import *
+from .soap_func import SMSClient
 
 
 @app.route('/')
-@limiter.limit("5000/hour")
 def index_get():
     result = {
         'user_url': '%suser{/user_id}' % (request.url_root),
@@ -26,7 +23,6 @@ def index_get():
 
 
 @app.route('/user', methods=['GET'])
-@limiter.limit('5000/hour')
 def user_list_get():
     try:
         items = []
@@ -40,7 +36,6 @@ def user_list_get():
 
 
 @app.route('/sms/<int:sms_id>', methods=['GET'])
-@limiter.limit('5000/minute')
 def sms_get(sms_id):
     try:
         sms = SMS.query.filter_by(id=sms_id).first()
@@ -62,7 +57,6 @@ def sms_get(sms_id):
 
 
 @app.route('/sms', methods=['GET'])
-@limiter.limit('5000/minute')
 def sms_list_get():
     try:
         limit = int(request.args.get('per_page', 20))
@@ -113,7 +107,6 @@ def get_user_dict():
 
 
 @app.route('/sms', methods=['POST'])
-@limiter.limit('5000/minute')
 def sms_post():
     if not request.json:
         return jsonify({'message': 'Problems parsing JSON'}), 415
